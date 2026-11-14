@@ -12,7 +12,7 @@ const COLORS = [
   { name: 'Grün', hex: '#2f9e66' },
   { name: 'Gelb', hex: '#e0a800' },
 ];
-const STORE_KEY = 'shutthebox-state-v3';
+const STORE_KEY = 'shutthebox-state-v4';
 const DEFAULT_SETTINGS = {
   playerCount: 2,
   digitalDice: false,
@@ -51,7 +51,18 @@ function save() {
 const playerName = (p) => p.name.trim() || COLORS[p.color].name;
 const playerHex = (p) => COLORS[p.color].hex;
 const total = (p) => p.scores.reduce((a, b) => a + b, 0);
-const currentIdx = () => (S.startSeat + S.turn) % S.players.length;
+const currentIdx = () => S.current;
+const isOut = (i) => S.players[i].scores.length >= S.round; // Runde für Spieler i beendet
+
+/** Nächster Spieler (nach dem aktiven), der in dieser Runde noch im Spiel ist – sonst null. */
+function nextActiveIdx() {
+  const n = S.players.length;
+  for (let k = 1; k <= n; k++) {
+    const i = (S.current + k) % n;
+    if (!isOut(i)) return i;
+  }
+  return null;
+}
 const currentPlayer = () => S.players[currentIdx()];
 /** Klappen eines Spielers (Standard: aktiver Spieler). true = offen. */
 const board = (i = currentIdx()) => S.boards[i];
@@ -96,7 +107,6 @@ function startGame(startSeat) {
   S.phase = 'play';
   S.startSeat = startSeat;
   S.round = 1;
-  S.turn = 0;
   S.players.forEach((p) => { p.scores = []; });
   startRound();
 }
@@ -104,10 +114,12 @@ function startGame(startSeat) {
 /** Neue Runde: alle Spieler bekommen ein frisches Klappenbrett. */
 function startRound() {
   S.boards = S.players.map(() => Array(S.settings.maxTile).fill(true));
+  S.current = S.startSeat;
   startTurn();
 }
 
 function startTurn() {
+  S.thrown = false; // digitale Würfel: in diesem Zug schon gewürfelt + umgelegt
   S.history = [];
   S.dice = null;
   S.selected = [];
@@ -164,6 +176,7 @@ function confirmSelection() {
   S.selected.forEach((n) => { board()[n - 1] = false; });
   S.selected = [];
   S.dice = null;
+  S.thrown = nextActiveIdx() !== S.current; // Mitspieler vorhanden → erst weitergeben
   save(); render();
   afterTilesChanged(wasOneDie);
 }
@@ -184,7 +197,7 @@ function askEndTurn() {
 
 function finishTurn(minus) {
   currentPlayer().scores.push(minus);
-  nextTurn();
+  passTurn();
 }
 
 function shutTheBox() {
@@ -195,22 +208,26 @@ function shutTheBox() {
   save(); render();
   showShutTheBox(p, () => {
     if (S.settings.shutWins) endGame([p], true);
-    else nextTurn();
+    else passTurn();
   });
 }
 
-function nextTurn() {
+/** Nach jedem Wurf: an den nächsten Spieler weitergeben, der noch im Spiel ist. */
+function passTurn() {
   S.phase = 'play';
-  S.turn++;
-  if (S.turn >= S.players.length) {
-    if (S.round >= S.settings.rounds) return endGame();
-    S.round++;
-    S.turn = 0;
-    S.startSeat = (S.startSeat + 1) % S.players.length; // Startspieler rotiert je Runde
-    toast(`Runde ${S.round} beginnt`);
-    return startRound();
-  }
+  const next = nextActiveIdx();
+  if (next === null) return endRound();
+  if (next !== S.current) buzz(25);
+  S.current = next;
   startTurn();
+}
+
+function endRound() {
+  if (S.round >= S.settings.rounds) return endGame();
+  S.round++;
+  S.startSeat = (S.startSeat + 1) % S.players.length; // Startspieler rotiert je Runde
+  toast(`Runde ${S.round} beginnt`);
+  startRound();
 }
 
 function endGame(forcedWinners, byShut) {
@@ -302,6 +319,9 @@ function renderSetup() {
       Die Summe der noch offenen Klappen zählt als Minuspunkte. Wer am Ende die wenigsten Minuspunkte hat, gewinnt.</p>
       <p>Wer alle Klappen schließt, hat <strong>„Shut the Box“</strong> geschafft – 0 Minuspunkte
       (und je nach Einstellung den sofortigen Sieg).</p>
+      <p><strong>Mehrere Spieler:</strong> Jeder hat ein eigenes Klappenbrett. Nach jedem Wurf wird mit
+      „Weiter an …“ an den nächsten Spieler weitergegeben. Wer nicht mehr kann, tippt „Runde vorbei“ und
+      scheidet für diese Runde aus – die anderen spielen weiter.</p>
       <p><strong>Echte Würfel:</strong> Einfach würfeln und die Klappen in der App antippen. Ein erneutes Tippen öffnet eine Klappe wieder.</p>
     </details>
   `;
@@ -335,6 +355,8 @@ function renderPlay() {
   const digital = st.digitalDice;
   const tiles = board();
   const minus = openSum();
+  const nextIdx = nextActiveIdx();
+  const nextP = nextIdx !== null && nextIdx !== S.current ? S.players[nextIdx] : null;
 
   let diceHtml = '';
   let noMove = false;
@@ -351,6 +373,11 @@ function renderPlay() {
           ${noMove
             ? `<div class="notice">Keine passende Kombination möglich – die Runde ist vorbei.</div>`
             : `<button class="btn btn-player" data-action="confirm" ${selSum === target ? '' : 'disabled'}>Klappen umlegen</button>`}
+        </section>`;
+    } else if (S.thrown) {
+      diceHtml = `
+        <section class="dice-area card">
+          <div class="dice-row" style="color:var(--muted)">Wurf erledigt – gib an den nächsten Spieler weiter.</div>
         </section>`;
     } else {
       diceHtml = `
@@ -375,7 +402,7 @@ function renderPlay() {
 
     <div class="players">
       ${S.players.map((pl) => {
-        const played = pl.scores.length >= S.round;
+        const played = isOut(S.players.indexOf(pl));
         return `
         <div class="chip ${pl === p ? 'active' : ''}" style="--c:${playerHex(pl)}">
           <span class="dot" style="background:${playerHex(pl)}"></span>
@@ -417,8 +444,14 @@ function renderPlay() {
 
     <div class="actions">
       <button class="btn btn-ghost" data-action="undo" ${S.history.length ? '' : 'disabled'} aria-label="Rückgängig">↶</button>
-      <button class="btn ${noMove ? 'btn-primary' : 'btn-player'}" data-action="end-turn">
-        Runde vorbei für ${esc(playerName(p))}
+      ${nextP
+        ? `<button class="btn btn-pass" style="--c:${playerHex(nextP)}" data-action="pass"
+             ${digital && (S.dice || !S.thrown) ? 'disabled' : ''}>
+             Weiter an ${esc(playerName(nextP))} ➜
+           </button>`
+        : ''}
+      <button class="btn ${noMove ? 'btn-primary' : 'btn-ghost'} btn-end ${nextP ? 'full' : ''}" data-action="end-turn">
+        Runde vorbei für ${esc(playerName(p))} (−${minus})
       </button>
     </div>
   `;
@@ -427,7 +460,7 @@ function renderPlay() {
 /** Kleines, nicht anklickbares Klappenbrett eines Mitspielers. */
 function miniBoardHtml(pl, i) {
   const tiles = board(i);
-  const played = pl.scores.length >= S.round;
+  const played = isOut(i);
   const minus = openSum(tiles);
   return `
     <div class="mini ${played ? 'finished' : ''}" style="--c:${playerHex(pl)}" aria-label="Klappen von ${esc(playerName(pl))}">
@@ -511,6 +544,7 @@ $app.addEventListener('click', (e) => {
     case 'undo': return undo();
     case 'confirm': return confirmSelection();
     case 'end-turn': return askEndTurn();
+    case 'pass': return passTurn();
     case 'menu': return showMenu();
     case 'scores': return showModal(`<h3>Punktestand</h3>${scoreTableHtml()}`, [{ label: 'Schließen', cls: 'btn-primary' }]);
     case 'rematch': return rematch();
@@ -752,5 +786,5 @@ if ('serviceWorker' in navigator) {
 render();
 // Nach Reload während der Shut-the-Box-Animation: Animation fortsetzen
 if (S.phase === 'shut') showShutTheBox(currentPlayer(), () => {
-  if (S.settings.shutWins) endGame([currentPlayer()], true); else nextTurn();
+  if (S.settings.shutWins) endGame([currentPlayer()], true); else passTurn();
 });

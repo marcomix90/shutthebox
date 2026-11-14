@@ -8,6 +8,8 @@ und rechnet die Minuspunkte aus. Optional gibt es **digitale Würfel**.
 ## Funktionen
 
 - 1–4 Spieler (Rot, Blau, Grün, Gelb), optional mit Namen
+- Jeder Spieler hat ein eigenes Klappenbrett (in Spielerfarbe), alle Bretter sind sichtbar
+- Nach jedem Wurf wird an den nächsten Spieler weitergegeben
 - Startspieler frei per Farbe wählbar (oder zufällig auslosen)
 - Echte Würfel (Standard) oder digitale Würfel inkl. „Ein Würfel“-Regel
 - Klappen 1–10 (Standard), 1–9 oder 1–12, 1/3/5 Runden
