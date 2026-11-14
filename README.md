@@ -22,10 +22,11 @@ cd public && python3 -m http.server 8000
 # http://localhost:8000
 ```
 
-## Deployment (GitLab Pages)
+## Deployment (GitHub Pages)
 
-`.gitlab-ci.yml` veröffentlicht den Ordner `public/` bei jedem Push auf den Default-Branch.
-Die URL steht danach unter *Deploy → Pages*.
+`.github/workflows/pages.yml` veröffentlicht den Ordner `public/` bei jedem Push auf `main`
+unter https://marcomix90.github.io/shutthebox/ .
+Einmalig nötig: *Settings → Pages → Source: GitHub Actions*.
 
 Nach Änderungen an Dateien in `public/` die `VERSION` in `public/sw.js` erhöhen,
 damit installierte Apps die neue Version laden.
