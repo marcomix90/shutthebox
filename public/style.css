@@ -203,6 +203,7 @@ details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
   font-size: clamp(1.4rem, 5.5vw, 2.4rem);
   box-shadow: 0 4px 0 #6b4320, 0 6px 10px rgba(0,0,0,.35);
   transform-origin: 50% 100%;
+  z-index: 2; /* stehende Klappen liegen immer vor umgelegten */
   transition: transform .35s cubic-bezier(.3,1.4,.6,1), filter .3s, box-shadow .3s, opacity .3s;
 }
 .tile::before {
@@ -210,12 +211,14 @@ details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
   background: var(--c, transparent); border-radius: 8px 8px 0 0;
 }
 .tile.shut {
+  z-index: 0;
   transform: rotateX(72deg);
   filter: brightness(.55) saturate(.6);
   box-shadow: 0 1px 0 #6b4320;
 }
 .tile.shut span { opacity: .3; }
 .tile.selected {
+  z-index: 3;
   transform: translateY(-8px);
   box-shadow: 0 0 0 4px var(--player), 0 10px 18px rgba(0,0,0,.45);
 }
