@@ -12,11 +12,11 @@ const COLORS = [
   { name: 'Grün', hex: '#2f9e66' },
   { name: 'Gelb', hex: '#e0a800' },
 ];
-const STORE_KEY = 'shutthebox-state-v1';
+const STORE_KEY = 'shutthebox-state-v2';
 const DEFAULT_SETTINGS = {
   playerCount: 2,
   digitalDice: false,
-  maxTile: 9,
+  maxTile: 10,
   rounds: 1,
   shutWins: true,
   names: ['', '', '', ''],
@@ -68,6 +68,15 @@ function canMake(target, tiles) {
 
 /** Ein Würfel erlaubt, wenn alle Klappen ab 7 aufwärts geschlossen sind. */
 const oneDieAllowed = () => S.tiles.slice(6).every((open) => !open);
+const oneDieRange = () => `7–${S.settings.maxTile}`;
+
+/** Nach jeder Änderung an den Klappen: Shut the Box oder Ein-Würfel-Hinweis. */
+function afterTilesChanged(wasOneDie) {
+  if (openTiles().length === 0) { setTimeout(shutTheBox, 450); return; }
+  if (!wasOneDie && oneDieAllowed()) {
+    toast(`🎲 Ab jetzt nur noch mit einem Würfel würfeln (${oneDieRange()} sind zu)`, 3500);
+  }
+}
 
 /* ---------------- Ablauf ---------------- */
 
@@ -111,11 +120,12 @@ function undo() {
 
 /** Echte Würfel: Klappe direkt umlegen (oder wieder öffnen bei Vertippen). */
 function toggleTile(n) {
+  const wasOneDie = oneDieAllowed();
   pushHistory();
   S.tiles[n - 1] = !S.tiles[n - 1];
   buzz();
   save(); render();
-  if (openTiles().length === 0) setTimeout(shutTheBox, 450);
+  afterTilesChanged(wasOneDie);
 }
 
 /** Digitale Würfel */
@@ -141,12 +151,13 @@ function confirmSelection() {
   const target = S.dice.reduce((a, b) => a + b, 0);
   const sum = S.selected.reduce((a, b) => a + b, 0);
   if (sum !== target) return;
+  const wasOneDie = oneDieAllowed();
   pushHistory();
   S.selected.forEach((n) => { S.tiles[n - 1] = false; });
   S.selected = [];
   S.dice = null;
   save(); render();
-  if (openTiles().length === 0) setTimeout(shutTheBox, 450);
+  afterTilesChanged(wasOneDie);
 }
 
 function askEndTurn() {
@@ -260,7 +271,7 @@ function renderSetup() {
         <h2>Würfel</h2>
         ${seg('digitalDice', [[false, '🎲 Echte Würfel'], [true, '📱 Digitale Würfel']], st.digitalDice)}
         <h2 style="margin-top:18px">Klappen</h2>
-        ${seg('maxTile', [[9, '1 – 9'], [12, '1 – 12']], st.maxTile)}
+        ${seg('maxTile', [[9, '1 – 9'], [10, '1 – 10'], [12, '1 – 12']], st.maxTile)}
         <h2 style="margin-top:18px">Runden</h2>
         ${seg('rounds', [[1, '1'], [3, '3'], [5, '5']], st.rounds)}
         <label class="check">
@@ -277,7 +288,7 @@ function renderSetup() {
       <p>Alle Klappen (1–${st.maxTile}) sind zu Beginn offen. Der aktive Spieler würfelt mit zwei Würfeln
       und legt eine beliebige Kombination offener Klappen um, deren Summe der Augenzahl entspricht
       (z.&nbsp;B. bei 8: „8“, „7+1“, „5+3“ oder „4+3+1“).</p>
-      <p>Sind alle Klappen ab 7 aufwärts geschlossen, darf mit nur einem Würfel weitergespielt werden.</p>
+      <p>Sind alle Klappen ab 7 aufwärts geschlossen, wird nur noch mit einem Würfel weitergespielt – die App weist darauf hin.</p>
       <p>Kann keine passende Kombination mehr umgelegt werden, ist die Runde für den Spieler vorbei.
       Die Summe der noch offenen Klappen zählt als Minuspunkte. Wer am Ende die wenigsten Minuspunkte hat, gewinnt.</p>
       <p>Wer alle Klappen schließt, hat <strong>„Shut the Box“</strong> geschafft – 0 Minuspunkte
@@ -337,8 +348,10 @@ function renderPlay() {
         <section class="dice-area card">
           <div class="dice-row" style="color:var(--muted)">Würfle, um zu beginnen.</div>
           <div class="dice-buttons">
-            <button class="btn btn-player" data-roll="2">🎲🎲 Zwei Würfel</button>
-            ${oneDieAllowed() ? `<button class="btn btn-ghost" data-roll="1">🎲 Ein Würfel</button>` : ''}
+            ${oneDieAllowed()
+              ? `<button class="btn btn-player" data-roll="1">🎲 Ein Würfel</button>
+                 <button class="btn btn-ghost" data-roll="2">🎲🎲 Zwei Würfel</button>`
+              : `<button class="btn btn-player" data-roll="2">🎲🎲 Zwei Würfel</button>`}
           </div>
         </section>`;
     }
@@ -383,6 +396,7 @@ function renderPlay() {
       <span>Offen: <strong>${openTiles().length}</strong> Klappen</span>
       <span>Minuspunkte aktuell: <strong class="minus">−${minus}</strong></span>
     </div>
+    ${oneDieAllowed() && minus > 0 ? `<div class="one-die">🎲 Nur noch mit <strong>einem Würfel</strong> würfeln – ${oneDieRange()} sind zu.</div>` : ''}
 
     ${diceHtml}
 
@@ -528,7 +542,7 @@ function hideModal() { $modal.hidden = true; }
 $modal.addEventListener('click', (e) => { if (e.target === $modal) hideModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$modal.hidden) hideModal(); });
 
-function toast(text) {
+function toast(text, ms = 1600) {
   const el = document.createElement('div');
   el.textContent = text;
   Object.assign(el.style, {
@@ -537,8 +551,8 @@ function toast(text) {
     fontWeight: '700', boxShadow: '0 6px 20px rgba(0,0,0,.4)', transition: 'opacity .4s',
   });
   document.body.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; }, 1600);
-  setTimeout(() => el.remove(), 2100);
+  setTimeout(() => { el.style.opacity = '0'; }, ms);
+  setTimeout(() => el.remove(), ms + 500);
 }
 
 /* ---------------- Effekte ---------------- */

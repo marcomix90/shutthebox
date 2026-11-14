@@ -174,6 +174,7 @@ details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
   padding: 14px;
   box-shadow: var(--shadow), inset 0 2px 0 rgba(255,255,255,.2);
 }
+.box[data-max="10"] { --cols: 10; }
 .box[data-max="12"] { --cols: 12; }
 .box-inner {
   background: radial-gradient(ellipse at 50% 30%, #23704f, #144531);
@@ -186,7 +187,7 @@ details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
   perspective: 600px;
 }
 @media (max-width: 640px) {
-  .box { --cols: 5; padding: 10px; }
+  .box, .box[data-max="10"] { --cols: 5; padding: 10px; }
   .box[data-max="12"] { --cols: 6; }
 }
 .tile {
@@ -224,6 +225,11 @@ details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
 }
 .status strong { color: var(--text); font-variant-numeric: tabular-nums; }
 .status .minus { color: #ff8a8d; }
+.one-die {
+  text-align: center; padding: 10px 14px; border-radius: 10px;
+  background: rgba(245,197,66,.16); border: 1px solid rgba(245,197,66,.55); color: #ffe9a8;
+  animation: pop .3s cubic-bezier(.3,1.4,.6,1);
+}
 
 /* Würfel */
 .dice-area { display: flex; flex-direction: column; align-items: center; gap: 12px; }

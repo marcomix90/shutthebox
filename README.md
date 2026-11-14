@@ -9,8 +9,9 @@ und rechnet die Minuspunkte aus. Optional gibt es **digitale Würfel**.
 
 - 1–4 Spieler (Rot, Blau, Grün, Gelb), optional mit Namen
 - Startspieler frei per Farbe wählbar (oder zufällig auslosen)
-- Echte Würfel (Standard) oder digitale Würfel inkl. „Ein Würfel“-Regel, sobald 7–9 zu sind
-- Klappen 1–9 oder 1–12, 1/3/5 Runden
+- Echte Würfel (Standard) oder digitale Würfel inkl. „Ein Würfel“-Regel
+- Klappen 1–10 (Standard), 1–9 oder 1–12, 1/3/5 Runden
+- Hinweis, sobald nur noch mit einem Würfel gewürfelt wird (alle Klappen ab 7 zu)
 - Button „Runde vorbei“ → Minuspunkte (Summe der offenen Klappen) werden notiert
 - Siegeranimation am Spielende, eigene „SHUT THE BOX“-Animation, wenn alle Klappen zu sind
 - Spielstand bleibt beim Neuladen erhalten, offline-fähig, installierbar, Bildschirm bleibt während des Spiels an
