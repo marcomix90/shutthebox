@@ -14,8 +14,9 @@ und rechnet die Minuspunkte aus. Optional gibt es **digitale Würfel**.
 - Echte Würfel (Standard) oder digitale Würfel inkl. „Ein Würfel“-Regel
 - Klappen 1–10 (Standard), 1–9 oder 1–12, 1/3/5 Runden
 - Hinweis, sobald nur noch mit einem Würfel gewürfelt wird (alle Klappen ab 7 zu)
-- Button „Runde vorbei“ → Minuspunkte (Summe der offenen Klappen) werden notiert
+- Knopf „✋ Ende“ → Minuspunkte (Summe der offenen Klappen) werden notiert
 - Siegeranimation am Spielende, eigene „SHUT THE BOX“-Animation, wenn alle Klappen zu sind
+- Knöpfe mit kurzen, einfachen Wörtern – auch für Leseanfänger
 - Spielstand bleibt beim Neuladen erhalten, offline-fähig, installierbar, Bildschirm bleibt während des Spiels an
 
 ## Lokal starten

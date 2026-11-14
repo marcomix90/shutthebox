@@ -82,13 +82,12 @@ function canMake(target, tiles) {
 
 /** Ein Würfel erlaubt, wenn alle Klappen ab 7 aufwärts geschlossen sind. */
 const oneDieAllowed = (tiles = board()) => tiles.slice(6).every((open) => !open);
-const oneDieRange = () => `7–${S.settings.maxTile}`;
 
 /** Nach jeder Änderung an den Klappen: Shut the Box oder Ein-Würfel-Hinweis. */
 function afterTilesChanged(wasOneDie) {
   if (openTiles().length === 0) { setTimeout(shutTheBox, 450); return; }
   if (!wasOneDie && oneDieAllowed()) {
-    toast(`🎲 Ab jetzt nur noch mit einem Würfel würfeln (${oneDieRange()} sind zu)`, 3500);
+    toast('🎲 Jetzt nur 1 Würfel!', 3500);
   }
 }
 
@@ -185,13 +184,13 @@ function askEndTurn() {
   const p = currentPlayer();
   const minus = openSum();
   showModal(`
-    <h3>Runde vorbei für <span style="color:${playerHex(p)}">${esc(playerName(p))}</span>?</h3>
+    <h3>Ende für <span style="color:${playerHex(p)}">${esc(playerName(p))}</span>?</h3>
     <p>Offene Klappen: ${openTiles().join(', ') || '–'}</p>
     <div class="big-minus">−${minus}</div>
     <p style="text-align:center">Minuspunkte werden notiert.</p>
   `, [
-    { label: 'Abbrechen', cls: 'btn-ghost' },
-    { label: 'Bestätigen', cls: 'btn-primary', onClick: () => finishTurn(minus) },
+    { label: '✗ Nein', cls: 'btn-ghost' },
+    { label: '✓ Ja', cls: 'btn-primary', onClick: () => finishTurn(minus) },
   ]);
 }
 
@@ -295,7 +294,7 @@ function renderSetup() {
 
       <section class="card">
         <h2>Würfel</h2>
-        ${seg('digitalDice', [[false, '🎲 Echte Würfel'], [true, '📱 Digitale Würfel']], st.digitalDice)}
+        ${seg('digitalDice', [[false, '🎲 Echt'], [true, '📱 App']], st.digitalDice)}
         <h2 style="margin-top:18px">Klappen</h2>
         ${seg('maxTile', [[9, '1 – 9'], [10, '1 – 10'], [12, '1 – 12']], st.maxTile)}
         <h2 style="margin-top:18px">Runden</h2>
@@ -307,7 +306,7 @@ function renderSetup() {
       </section>
     </div>
 
-    <button class="btn btn-primary btn-block" data-action="next">Weiter</button>
+    <button class="btn btn-primary btn-block" data-action="next">Los ➜</button>
 
     <details class="rules card">
       <summary>Spielregeln</summary>
@@ -320,7 +319,7 @@ function renderSetup() {
       <p>Wer alle Klappen schließt, hat <strong>„Shut the Box“</strong> geschafft – 0 Minuspunkte
       (und je nach Einstellung den sofortigen Sieg).</p>
       <p><strong>Mehrere Spieler:</strong> Jeder hat ein eigenes Klappenbrett. Nach jedem Wurf wird mit
-      „Weiter an …“ an den nächsten Spieler weitergegeben. Wer nicht mehr kann, tippt „Runde vorbei“ und
+      „➜ Name“ an den nächsten Spieler weitergegeben. Wer nicht mehr kann, tippt „✋ Ende“ und
       scheidet für diese Runde aus – die anderen spielen weiter.</p>
       <p><strong>Echte Würfel:</strong> Einfach würfeln und die Klappen in der App antippen. Ein erneutes Tippen öffnet eine Klappe wieder.</p>
     </details>
@@ -343,7 +342,7 @@ function renderStarter() {
           ${p.name.trim() ? `<small>${COLORS[p.color].name}</small>` : ''}
         </button>`).join('')}
     </div>
-    ${S.players.length > 1 ? `<button class="btn btn-ghost btn-block" data-action="random-start">🎲 Zufällig auslosen</button>` : ''}
+    ${S.players.length > 1 ? `<button class="btn btn-ghost btn-block" data-action="random-start">🎲 Zufall</button>` : ''}
   `;
 }
 
@@ -371,23 +370,23 @@ function renderPlay() {
           <div class="dice-sum">Augensumme <strong>${target}</strong>
             ${noMove ? '' : ` · Auswahl <strong style="color:${selSum === target ? '#7ee2a8' : selSum > target ? '#ff8a8d' : 'var(--text)'}">${selSum}</strong>`}</div>
           ${noMove
-            ? `<div class="notice">Keine passende Kombination möglich – die Runde ist vorbei.</div>`
-            : `<button class="btn btn-player" data-action="confirm" ${selSum === target ? '' : 'disabled'}>Klappen umlegen</button>`}
+            ? `<div class="notice">Geht nicht. Tippe ✋ Ende.</div>`
+            : `<button class="btn btn-player" data-action="confirm" ${selSum === target ? '' : 'disabled'}>✓ OK</button>`}
         </section>`;
     } else if (S.thrown) {
       diceHtml = `
         <section class="dice-area card">
-          <div class="dice-row" style="color:var(--muted)">Wurf erledigt – gib an den nächsten Spieler weiter.</div>
+          <div class="dice-row" style="color:var(--muted)">Gib weiter ➜</div>
         </section>`;
     } else {
       diceHtml = `
         <section class="dice-area card">
-          <div class="dice-row" style="color:var(--muted)">Würfle, um zu beginnen.</div>
+          <div class="dice-row" style="color:var(--muted)">Würfle!</div>
           <div class="dice-buttons">
             ${oneDieAllowed()
-              ? `<button class="btn btn-player" data-roll="1">🎲 Ein Würfel</button>
-                 <button class="btn btn-ghost" data-roll="2">🎲🎲 Zwei Würfel</button>`
-              : `<button class="btn btn-player" data-roll="2">🎲🎲 Zwei Würfel</button>`}
+              ? `<button class="btn btn-player" data-roll="1">🎲 Würfeln</button>
+                 <button class="btn btn-ghost" data-roll="2" aria-label="Mit zwei Würfeln würfeln">🎲🎲</button>`
+              : `<button class="btn btn-player" data-roll="2">🎲🎲 Würfeln</button>`}
           </div>
         </section>`;
     }
@@ -432,7 +431,7 @@ function renderPlay() {
       <span>Offen: <strong>${openTiles().length}</strong> Klappen</span>
       <span>Minuspunkte aktuell: <strong class="minus">−${minus}</strong></span>
     </div>
-    ${oneDieAllowed() && minus > 0 ? `<div class="one-die">🎲 Nur noch mit <strong>einem Würfel</strong> würfeln – ${oneDieRange()} sind zu.</div>` : ''}
+    ${oneDieAllowed() && minus > 0 ? `<div class="one-die">🎲 Nur <strong>1 Würfel</strong>!</div>` : ''}
 
     ${diceHtml}
 
@@ -447,11 +446,11 @@ function renderPlay() {
       ${nextP
         ? `<button class="btn btn-pass" style="--c:${playerHex(nextP)}" data-action="pass"
              ${digital && (S.dice || !S.thrown) ? 'disabled' : ''}>
-             Weiter an ${esc(playerName(nextP))} ➜
+             ➜ ${esc(playerName(nextP))}
            </button>`
         : ''}
       <button class="btn ${noMove ? 'btn-primary' : 'btn-ghost'} btn-end ${nextP ? 'full' : ''}" data-action="end-turn">
-        Runde vorbei für ${esc(playerName(p))} (−${minus})
+        ✋ Ende
       </button>
     </div>
   `;
@@ -507,9 +506,9 @@ function renderOver() {
     <h1 class="logo">SPIELENDE</h1>
     <p class="subtitle">${S.byShut ? 'Gewonnen durch „Shut the Box“!' : winners.length > 1 ? 'Unentschieden!' : `${esc(playerName(winners[0]))} gewinnt!`}</p>
     <section class="card">${scoreTableHtml()}</section>
-    <button class="btn btn-primary btn-block" data-action="rematch">Nochmal (gleiche Spieler)</button>
-    <button class="btn btn-ghost btn-block" data-action="new">Neues Spiel</button>
-    <button class="btn btn-ghost btn-block" data-action="replay-fx">🏆 Siegerehrung nochmal</button>
+    <button class="btn btn-primary btn-block" data-action="rematch">🔁 Nochmal</button>
+    <button class="btn btn-ghost btn-block" data-action="new">✨ Neu</button>
+    <button class="btn btn-ghost btn-block" data-action="replay-fx">🏆 Feiern</button>
   `;
 }
 
@@ -546,7 +545,7 @@ $app.addEventListener('click', (e) => {
     case 'end-turn': return askEndTurn();
     case 'pass': return passTurn();
     case 'menu': return showMenu();
-    case 'scores': return showModal(`<h3>Punktestand</h3>${scoreTableHtml()}`, [{ label: 'Schließen', cls: 'btn-primary' }]);
+    case 'scores': return showModal(`<h3>Punktestand</h3>${scoreTableHtml()}`, [{ label: '✓ OK', cls: 'btn-primary' }]);
     case 'rematch': return rematch();
     case 'new': return newGame();
     case 'replay-fx': return showWinner((S.winners || []).map((i) => S.players[i]), S.byShut);
@@ -578,15 +577,15 @@ function randomStart() {
 
 function showMenu() {
   showModal(`<h3>Menü</h3><p>Das laufende Spiel wird automatisch gespeichert.</p>`, [
-    { label: 'Neues Spiel', cls: 'btn-ghost', onClick: () => confirmNew() },
-    { label: 'Weiterspielen', cls: 'btn-primary' },
+    { label: '✨ Neu', cls: 'btn-ghost', onClick: () => confirmNew() },
+    { label: '▶ Weiter', cls: 'btn-primary' },
   ]);
 }
 
 function confirmNew() {
   setTimeout(() => showModal(`<h3>Spiel abbrechen?</h3><p>Der aktuelle Spielstand geht verloren.</p>`, [
-    { label: 'Nein', cls: 'btn-ghost' },
-    { label: 'Ja, neues Spiel', cls: 'btn-primary', onClick: () => newGame() },
+    { label: '✗ Nein', cls: 'btn-ghost' },
+    { label: '✓ Ja', cls: 'btn-primary', onClick: () => newGame() },
   ]), 0);
 }
 
