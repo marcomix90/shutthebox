@@ -1,0 +1,31 @@
+# Shut the Box
+
+Browser-Begleiter (PWA) für das Würfelspiel [Shut the Box](https://de.wikipedia.org/wiki/Shut_the_Box) – für 1–4 Spieler.
+
+Standardmäßig wird mit **echten Würfeln** gespielt: die App zeigt nur an, welche Klappen schon umgelegt sind,
+und rechnet die Minuspunkte aus. Optional gibt es **digitale Würfel**.
+
+## Funktionen
+
+- 1–4 Spieler (Rot, Blau, Grün, Gelb), optional mit Namen
+- Startspieler frei per Farbe wählbar (oder zufällig auslosen)
+- Echte Würfel (Standard) oder digitale Würfel inkl. „Ein Würfel“-Regel, sobald 7–9 zu sind
+- Klappen 1–9 oder 1–12, 1/3/5 Runden
+- Button „Runde vorbei“ → Minuspunkte (Summe der offenen Klappen) werden notiert
+- Siegeranimation am Spielende, eigene „SHUT THE BOX“-Animation, wenn alle Klappen zu sind
+- Spielstand bleibt beim Neuladen erhalten, offline-fähig, installierbar, Bildschirm bleibt während des Spiels an
+
+## Lokal starten
+
+```sh
+cd public && python3 -m http.server 8000
+# http://localhost:8000
+```
+
+## Deployment (GitLab Pages)
+
+`.gitlab-ci.yml` veröffentlicht den Ordner `public/` bei jedem Push auf den Default-Branch.
+Die URL steht danach unter *Deploy → Pages*.
+
+Nach Änderungen an Dateien in `public/` die `VERSION` in `public/sw.js` erhöhen,
+damit installierte Apps die neue Version laden.
