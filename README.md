@@ -16,6 +16,7 @@ und rechnet die Minuspunkte aus. Optional gibt es **digitale Würfel**.
 - Hinweis, sobald nur noch mit einem Würfel gewürfelt wird (alle Klappen ab 7 zu)
 - Knopf „✋ Ende“ → Minuspunkte (Summe der offenen Klappen) werden notiert
 - Siegeranimation am Spielende, eigene „SHUT THE BOX“-Animation, wenn alle Klappen zu sind
+- Soundeffekte (im Browser erzeugt, keine Stimmen), per 🔊 abschaltbar
 - Knöpfe mit kurzen, einfachen Wörtern – auch für Leseanfänger
 - Spielstand bleibt beim Neuladen erhalten, offline-fähig, installierbar, Bildschirm bleibt während des Spiels an
 

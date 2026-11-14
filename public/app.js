@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS = {
   maxTile: 10,
   rounds: 1,
   shutWins: true,
+  sound: true,
   names: ['', '', '', ''],
 };
 
@@ -88,6 +89,7 @@ function afterTilesChanged(wasOneDie) {
   if (openTiles().length === 0) { setTimeout(shutTheBox, 450); return; }
   if (!wasOneDie && oneDieAllowed()) {
     toast('🎲 Jetzt nur 1 Würfel!', 3500);
+    Sound.play('ding');
   }
 }
 
@@ -195,6 +197,7 @@ function askEndTurn() {
 }
 
 function finishTurn(minus) {
+  Sound.play('end');
   currentPlayer().scores.push(minus);
   passTurn();
 }
@@ -299,6 +302,8 @@ function renderSetup() {
         ${seg('maxTile', [[9, '1 – 9'], [10, '1 – 10'], [12, '1 – 12']], st.maxTile)}
         <h2 style="margin-top:18px">Runden</h2>
         ${seg('rounds', [[1, '1'], [3, '3'], [5, '5']], st.rounds)}
+        <h2 style="margin-top:18px">Ton</h2>
+        ${seg('sound', [[true, '🔊 An'], [false, '🔇 Aus']], st.sound !== false)}
         <label class="check">
           <input type="checkbox" data-check="shutWins" ${st.shutWins ? 'checked' : ''}>
           <span>„Shut the Box“ gewinnt das Spiel sofort</span>
@@ -396,7 +401,10 @@ function renderPlay() {
     <div class="topbar">
       <button class="icon-btn" data-action="menu" aria-label="Menü">☰</button>
       <span class="round">${st.rounds > 1 ? `Runde ${S.round} / ${st.rounds}` : 'Shut the Box'}</span>
-      <button class="icon-btn" data-action="scores" aria-label="Punktestand">📋</button>
+      <span class="topbar-right">
+        <button class="icon-btn" data-action="sound" aria-label="Ton an oder aus">${st.sound !== false ? '🔊' : '🔇'}</button>
+        <button class="icon-btn" data-action="scores" aria-label="Punktestand">📋</button>
+      </span>
     </div>
 
     <div class="players">
@@ -530,11 +538,14 @@ $app.addEventListener('click', (e) => {
   if (t.dataset.tile !== undefined) {
     const n = Number(t.dataset.tile);
     if (S.phase !== 'play') return;
-    if (S.settings.digitalDice) { if (!t.dataset.locked) toggleSelect(n); }
-    else toggleTile(n);
+    if (S.settings.digitalDice) { if (!t.dataset.locked) { Sound.play('select'); toggleSelect(n); } }
+    else { Sound.play(board()[n - 1] ? 'tileDown' : 'tileUp'); toggleTile(n); }
     return;
   }
-  if (t.dataset.roll) return roll(Number(t.dataset.roll));
+  if (t.dataset.roll) { Sound.play('dice'); return roll(Number(t.dataset.roll)); }
+  if (t.dataset.action === 'confirm') Sound.play('tileDown');
+  else if (t.dataset.action === 'pass') Sound.play('pass');
+  else if (t.dataset.action !== 'sound') Sound.play('click');
 
   switch (t.dataset.action) {
     case 'next': return goToStarter();
@@ -544,6 +555,10 @@ $app.addEventListener('click', (e) => {
     case 'confirm': return confirmSelection();
     case 'end-turn': return askEndTurn();
     case 'pass': return passTurn();
+    case 'sound':
+      S.settings.sound = S.settings.sound === false;
+      save(); render();
+      return Sound.play('click');
     case 'menu': return showMenu();
     case 'scores': return showModal(`<h3>Punktestand</h3>${scoreTableHtml()}`, [{ label: '✓ OK', cls: 'btn-primary' }]);
     case 'rematch': return rematch();
@@ -597,6 +612,7 @@ function showModal(html, buttons) {
     `<button class="btn ${b.cls || ''}" data-mi="${i}">${b.label}</button>`).join('')}</div>`;
   card.querySelectorAll('[data-mi]').forEach((el) => {
     el.addEventListener('click', () => {
+      Sound.play('click');
       hideModal();
       const b = buttons[Number(el.dataset.mi)];
       if (b.onClick) b.onClick();
@@ -668,6 +684,7 @@ function confettiBurst(colors, n = 140) {
 }
 
 function firework(x, y, colors) {
+  Sound.play('pop');
   const n = 70;
   const speed = 3 + Math.random() * 3;
   const color = colors[Math.floor(Math.random() * colors.length)];
@@ -692,7 +709,7 @@ function startFx(html, onDone, setup) {
   clearInterval(fxSpawner);
   setup();
   const btn = $fx.querySelector('[data-fx-close]');
-  btn.addEventListener('click', () => { hideFx(); onDone && onDone(); }, { once: true });
+  btn.addEventListener('click', () => { Sound.play('click'); hideFx(); onDone && onDone(); }, { once: true });
   setTimeout(() => btn.focus(), 2700);
 }
 
@@ -723,6 +740,7 @@ function showWinner(winners, byShut) {
     }, 900);
   });
   buzz([60, 40, 60, 40, 120]);
+  setTimeout(() => Sound.play('win'), 700); // nach dem "Ende"-Ton, wenn der Pokal landet
 }
 
 function showShutTheBox(p, onDone) {
@@ -749,7 +767,136 @@ function showShutTheBox(p, onDone) {
     }, 450);
   });
   buzz([200, 80, 200, 80, 400]);
+  Sound.play('shut');
 }
+
+/* ---------------- Sound (Web Audio, synthetisch – keine Dateien, keine Stimmen) ---------------- */
+
+const Sound = (() => {
+  let ac = null;
+  let master = null;
+  let noiseBuf = null;
+  const on = () => S.settings.sound !== false;
+
+  function ctx() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ac = new AC();
+      master = ac.createGain();
+      master.gain.value = 0.6;
+      master.connect(ac.destination);
+    }
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+
+  /** Einzelner Ton mit kurzer Hüllkurve. */
+  function tone(freq, start, dur, { type = 'sine', vol = 0.3, slideTo = 0, attack = 0.006 } = {}) {
+    const c = ctx(); if (!c) return;
+    const t = c.currentTime + start;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(master);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+
+  /** Gefiltertes Rauschen (Holz-Klack, Würfelklappern, Knall). */
+  function noise(start, dur, { vol = 0.3, freq = 2000, q = 1, type = 'bandpass' } = {}) {
+    const c = ctx(); if (!c) return;
+    if (!noiseBuf) {
+      noiseBuf = c.createBuffer(1, Math.floor(c.sampleRate * 0.8), c.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const t = c.currentTime + start;
+    const src = c.createBufferSource();
+    src.buffer = noiseBuf;
+    const f = c.createBiquadFilter();
+    f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(master);
+    src.start(t); src.stop(t + dur + 0.02);
+  }
+
+  const fx = {
+    // kurzer, weicher Tick für normale Knöpfe
+    click() { tone(720, 0, 0.07, { type: 'triangle', vol: 0.14 }); },
+    // Holzklappe fällt um
+    tileDown() {
+      noise(0, 0.07, { vol: 0.55, freq: 1400, q: 2.5 });
+      tone(190, 0, 0.14, { vol: 0.4, slideTo: 85 });
+    },
+    // Klappe wieder hochgestellt
+    tileUp() {
+      noise(0, 0.04, { vol: 0.3, freq: 2600, q: 3 });
+      tone(320, 0, 0.09, { type: 'triangle', vol: 0.15, slideTo: 460 });
+    },
+    // Auswahl einer Klappe (digitale Würfel)
+    select() { tone(540, 0, 0.06, { type: 'triangle', vol: 0.15, slideTo: 640 }); },
+    // Würfelklappern
+    dice() {
+      for (let i = 0; i < 8; i++) {
+        const st = i * 0.045 + Math.random() * 0.025;
+        noise(st, 0.035, { vol: 0.45 - i * 0.04, freq: 2500 + Math.random() * 2500, q: 4 });
+        tone(900 + Math.random() * 600, st, 0.03, { type: 'square', vol: 0.03 });
+      }
+    },
+    // an den nächsten Spieler weitergeben
+    pass() {
+      tone(523, 0, 0.12, { type: 'triangle', vol: 0.2 });
+      tone(784, 0.09, 0.2, { type: 'triangle', vol: 0.2 });
+    },
+    // Hinweis "Nur 1 Würfel"
+    ding() {
+      tone(1046, 0, 0.5, { vol: 0.18 });
+      tone(1568, 0.1, 0.6, { vol: 0.12 });
+    },
+    // Ende für einen Spieler (absteigend, freundlich)
+    end() {
+      tone(392, 0, 0.22, { type: 'triangle', vol: 0.22 });
+      tone(330, 0.2, 0.22, { type: 'triangle', vol: 0.22 });
+      tone(262, 0.4, 0.55, { type: 'triangle', vol: 0.22, slideTo: 240 });
+    },
+    // Sieger-Fanfare
+    win() {
+      [523, 659, 784].forEach((f, i) => tone(f, i * 0.13, 0.22, { type: 'square', vol: 0.08 }));
+      tone(1046, 0.39, 0.25, { type: 'square', vol: 0.08 });
+      tone(784, 0.62, 0.14, { type: 'square', vol: 0.08 });
+      [523, 659, 784, 1046].forEach((f) => tone(f, 0.78, 1.4, { type: 'triangle', vol: 0.1 }));
+      [0.9, 1.25, 1.6].forEach((st) => noise(st, 0.5, { vol: 0.12, freq: 5000, q: 0.6, type: 'highpass' }));
+    },
+    // Shut the Box: Klappen fallen, Deckel knallt zu, große Fanfare
+    shut() {
+      for (let i = 0; i < 9; i++) noise(i * 0.05, 0.05, { vol: 0.35, freq: 1400, q: 2.5 });
+      tone(110, 1.12, 0.45, { vol: 0.7, slideTo: 45 });
+      noise(1.12, 0.2, { vol: 0.7, freq: 500, q: 0.8, type: 'lowpass' });
+      const f = [392, 523, 659, 784, 659, 784, 1046];
+      const tm = [1.45, 1.6, 1.75, 1.9, 2.1, 2.2, 2.35];
+      f.forEach((fr, i) => tone(fr, tm[i], i === f.length - 1 ? 1.6 : 0.18, { type: 'square', vol: 0.08 }));
+      [523, 659, 784, 1046].forEach((fr) => tone(fr, 2.35, 1.8, { type: 'triangle', vol: 0.11 }));
+      for (let i = 0; i < 6; i++) tone(2000 + i * 220, 2.5 + i * 0.07, 0.25, { vol: 0.05 });
+    },
+    // leiser Feuerwerks-Knall
+    pop() { noise(0, 0.3, { vol: 0.12, freq: 700, q: 0.7, type: 'lowpass' }); },
+  };
+
+  return {
+    play(name) { if (!on()) return; try { fx[name](); } catch { /* Audio nicht verfügbar */ } },
+    unlock() { if (on()) { try { ctx(); } catch { /* egal */ } } },
+  };
+})();
+
+// Browser erlauben Audio erst nach einer Berührung → beim ersten Tippen freischalten
+document.addEventListener('pointerdown', () => Sound.unlock(), { passive: true });
 
 /* ---------------- Helfer ---------------- */
 

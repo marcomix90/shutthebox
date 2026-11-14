@@ -137,6 +137,7 @@ details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
 
 /* ---------- Spielbildschirm ---------- */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.topbar-right { display: flex; gap: 8px; }
 .topbar .round { font-weight: 700; color: var(--muted); letter-spacing: .04em; }
 
 .players { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }

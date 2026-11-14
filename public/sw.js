@@ -1,6 +1,6 @@
 // Service Worker: offline-fähig, Cache-first für App-Dateien.
 // Bei Änderungen an den Dateien VERSION erhöhen.
-const VERSION = 'stb-v5';
+const VERSION = 'stb-v6';
 const ASSETS = [
   './',
   './index.html',
