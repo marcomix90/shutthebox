@@ -12,7 +12,7 @@ const COLORS = [
   { name: 'Grün', hex: '#2f9e66' },
   { name: 'Gelb', hex: '#e0a800' },
 ];
-const STORE_KEY = 'shutthebox-state-v2';
+const STORE_KEY = 'shutthebox-state-v3';
 const DEFAULT_SETTINGS = {
   playerCount: 2,
   digitalDice: false,
@@ -51,9 +51,12 @@ function save() {
 const playerName = (p) => p.name.trim() || COLORS[p.color].name;
 const playerHex = (p) => COLORS[p.color].hex;
 const total = (p) => p.scores.reduce((a, b) => a + b, 0);
-const openTiles = () => S.tiles.map((open, i) => (open ? i + 1 : 0)).filter(Boolean);
-const openSum = () => openTiles().reduce((a, b) => a + b, 0);
-const currentPlayer = () => S.players[(S.startSeat + S.turn) % S.players.length];
+const currentIdx = () => (S.startSeat + S.turn) % S.players.length;
+const currentPlayer = () => S.players[currentIdx()];
+/** Klappen eines Spielers (Standard: aktiver Spieler). true = offen. */
+const board = (i = currentIdx()) => S.boards[i];
+const openTiles = (tiles = board()) => tiles.map((open, i) => (open ? i + 1 : 0)).filter(Boolean);
+const openSum = (tiles = board()) => openTiles(tiles).reduce((a, b) => a + b, 0);
 
 /** Ist irgendeine Kombination offener Klappen = target? */
 function canMake(target, tiles) {
@@ -67,7 +70,7 @@ function canMake(target, tiles) {
 }
 
 /** Ein Würfel erlaubt, wenn alle Klappen ab 7 aufwärts geschlossen sind. */
-const oneDieAllowed = () => S.tiles.slice(6).every((open) => !open);
+const oneDieAllowed = (tiles = board()) => tiles.slice(6).every((open) => !open);
 const oneDieRange = () => `7–${S.settings.maxTile}`;
 
 /** Nach jeder Änderung an den Klappen: Shut the Box oder Ein-Würfel-Hinweis. */
@@ -95,11 +98,16 @@ function startGame(startSeat) {
   S.round = 1;
   S.turn = 0;
   S.players.forEach((p) => { p.scores = []; });
+  startRound();
+}
+
+/** Neue Runde: alle Spieler bekommen ein frisches Klappenbrett. */
+function startRound() {
+  S.boards = S.players.map(() => Array(S.settings.maxTile).fill(true));
   startTurn();
 }
 
 function startTurn() {
-  S.tiles = Array(S.settings.maxTile).fill(true);
   S.history = [];
   S.dice = null;
   S.selected = [];
@@ -107,13 +115,13 @@ function startTurn() {
 }
 
 function pushHistory() {
-  S.history.push(S.tiles.slice());
+  S.history.push(board().slice());
   if (S.history.length > 50) S.history.shift();
 }
 
 function undo() {
   if (!S.history.length) return;
-  S.tiles = S.history.pop();
+  S.boards[currentIdx()] = S.history.pop();
   S.selected = [];
   save(); render();
 }
@@ -122,7 +130,7 @@ function undo() {
 function toggleTile(n) {
   const wasOneDie = oneDieAllowed();
   pushHistory();
-  S.tiles[n - 1] = !S.tiles[n - 1];
+  board()[n - 1] = !board()[n - 1];
   buzz();
   save(); render();
   afterTilesChanged(wasOneDie);
@@ -140,7 +148,7 @@ function roll(count) {
 }
 
 function toggleSelect(n) {
-  if (!S.dice || !S.tiles[n - 1]) return;
+  if (!S.dice || !board()[n - 1]) return;
   const i = S.selected.indexOf(n);
   if (i >= 0) S.selected.splice(i, 1); else S.selected.push(n);
   buzz();
@@ -153,7 +161,7 @@ function confirmSelection() {
   if (sum !== target) return;
   const wasOneDie = oneDieAllowed();
   pushHistory();
-  S.selected.forEach((n) => { S.tiles[n - 1] = false; });
+  S.selected.forEach((n) => { board()[n - 1] = false; });
   S.selected = [];
   S.dice = null;
   save(); render();
@@ -200,6 +208,7 @@ function nextTurn() {
     S.turn = 0;
     S.startSeat = (S.startSeat + 1) % S.players.length; // Startspieler rotiert je Runde
     toast(`Runde ${S.round} beginnt`);
+    return startRound();
   }
   startTurn();
 }
@@ -324,7 +333,7 @@ function renderPlay() {
   document.documentElement.style.setProperty('--player', hex);
   const st = S.settings;
   const digital = st.digitalDice;
-  const tiles = S.tiles;
+  const tiles = board();
   const minus = openSum();
 
   let diceHtml = '';
@@ -379,7 +388,7 @@ function renderPlay() {
 
     <div class="turn-banner">${esc(playerName(p))} ist dran</div>
 
-    <div class="box" data-max="${st.maxTile}">
+    <div class="box" data-max="${st.maxTile}" style="--c:${hex}">
       <div class="box-inner">
         ${tiles.map((open, i) => {
           const n = i + 1;
@@ -400,6 +409,12 @@ function renderPlay() {
 
     ${diceHtml}
 
+    ${S.players.length > 1 ? `
+      <section class="others">
+        <h2>Mitspieler</h2>
+        <div class="others-grid">${S.players.map((pl, i) => (pl === p ? '' : miniBoardHtml(pl, i))).join('')}</div>
+      </section>` : ''}
+
     <div class="actions">
       <button class="btn btn-ghost" data-action="undo" ${S.history.length ? '' : 'disabled'} aria-label="Rückgängig">↶</button>
       <button class="btn ${noMove ? 'btn-primary' : 'btn-player'}" data-action="end-turn">
@@ -407,6 +422,25 @@ function renderPlay() {
       </button>
     </div>
   `;
+}
+
+/** Kleines, nicht anklickbares Klappenbrett eines Mitspielers. */
+function miniBoardHtml(pl, i) {
+  const tiles = board(i);
+  const played = pl.scores.length >= S.round;
+  const minus = openSum(tiles);
+  return `
+    <div class="mini ${played ? 'finished' : ''}" style="--c:${playerHex(pl)}" aria-label="Klappen von ${esc(playerName(pl))}">
+      <div class="mini-head">
+        <span class="dot" style="background:${playerHex(pl)}"></span>
+        <span class="name">${esc(playerName(pl))}</span>
+        <span class="mini-state">${played ? '✓ fertig' : ''}</span>
+        <span class="minus">−${minus}</span>
+      </div>
+      <div class="mini-box" data-max="${S.settings.maxTile}">
+        ${tiles.map((open, k) => `<span class="mini-tile ${open ? '' : 'shut'}">${k + 1}</span>`).join('')}
+      </div>
+    </div>`;
 }
 
 function dieHtml(v, animate) {

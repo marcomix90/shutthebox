@@ -172,7 +172,7 @@ details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
   background: linear-gradient(180deg, var(--wood-light), var(--wood) 35%, var(--wood-dark));
   border-radius: 20px;
   padding: 14px;
-  box-shadow: var(--shadow), inset 0 2px 0 rgba(255,255,255,.2);
+  box-shadow: 0 0 0 4px var(--c, transparent), var(--shadow), inset 0 2px 0 rgba(255,255,255,.2);
 }
 .box[data-max="10"] { --cols: 10; }
 .box[data-max="12"] { --cols: 12; }
@@ -204,6 +204,10 @@ details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
   box-shadow: 0 4px 0 #6b4320, 0 6px 10px rgba(0,0,0,.35);
   transform-origin: 50% 100%;
   transition: transform .35s cubic-bezier(.3,1.4,.6,1), filter .3s, box-shadow .3s, opacity .3s;
+}
+.tile::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 12%;
+  background: var(--c, transparent); border-radius: 8px 8px 0 0;
 }
 .tile.shut {
   transform: rotateX(72deg);
@@ -258,6 +262,30 @@ details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
   text-align: center; padding: 10px 14px; border-radius: 10px;
   background: rgba(229,72,77,.18); border: 1px solid rgba(229,72,77,.5); color: #ffd2d3;
 }
+
+/* Mitspieler-Bretter */
+.others h2 { margin: 0 0 8px; font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.others-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.mini {
+  border-radius: 12px; padding: 8px 10px 10px;
+  background: color-mix(in srgb, var(--c) 18%, rgba(0,0,0,.3));
+  border: 2px solid var(--c);
+}
+.mini.finished { opacity: .75; }
+.mini-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 700; }
+.mini-head .dot { width: 12px; height: 12px; }
+.mini-head .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-head .mini-state { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.mini-head .minus { color: #ff8a8d; font-variant-numeric: tabular-nums; }
+.mini-box { display: grid; grid-template-columns: repeat(var(--mcols, 10), 1fr); gap: 3px; }
+.mini-box[data-max="9"] { --mcols: 9; }
+.mini-box[data-max="12"] { --mcols: 12; }
+.mini-tile {
+  text-align: center; font-family: Georgia, serif; font-weight: 700; font-size: .8rem;
+  padding: 4px 0; border-radius: 4px; color: var(--ink);
+  background: linear-gradient(180deg, var(--c) 0 22%, var(--tile) 22%);
+}
+.mini-tile.shut { background: rgba(0,0,0,.35); color: rgba(255,255,255,.25); }
 
 .actions { display: grid; grid-template-columns: auto 1fr; gap: 10px; margin-top: auto; }
 
